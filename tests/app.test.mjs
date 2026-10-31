@@ -10,10 +10,10 @@ import {profile,measure,dateValid} from '../worker/api.js';
 const data=JSON.parse(fs.readFileSync('public/recipes.json','utf8'));
 test('250 recipes, 50 distinct recipes in each category, allergen metadata covers ingredients',()=>{assert.equal(data.length,250);assert.equal(new Set(data.map(x=>x.name)).size,250);for(const c of ['Padat kalori','Dobel protein','Camilan','Finger food','BB booster'])assert.equal(data.filter(r=>r.tags.includes(c)).length,50);for(const r of data){assert(r.ingredients.length>=3);assert(r.steps.length>=3);assert(r.min>=6);const str=r.ingredients.join(' ');for(const [re,a]of [[/telur/,'Telur'],[/tahu|tempe/,'Kedelai'],[/keju/,'Susu'],[/udang/,'Udang / kerang'],[/salmon|nila|kembung|lele/,'Ikan'],[/oat/,'Gandum']])if(re.test(str))assert(r.allergens.includes(a),r.name+' missing '+a)}});
 test('profile and measurements reject impossible and future inputs',()=>{assert(!dateValid('2026-02-30'));assert(!dateValid('2030-01-01'));assert.throws(()=>profile({name:'A',sex:'L',birth:'bad'}));assert.throws(()=>measure({date:'2026-10-01',weight:-3,height:65,method:'PB'},'2026-01-01'));assert.throws(()=>measure({date:'2025-01-01',weight:7,height:65,method:'PB'},'2026-01-01'));assert.equal(profile({name:'A',sex:'P',birth:'2026-01-01',allergies:[]}).birthWeight,null)});
-test('account lifecycle, owner isolation, profile first measurement atomicity, growth persistence and UI',async()=>{
+test('account lifecycle, account isolation, public mobile login, profile first measurement atomicity, growth persistence and UI',async()=>{
  const mf=new Miniflare({modules:true,scriptPath:'dist/server/index.js',compatibilityDate:'2026-01-01',d1Databases:['DB'],cf:false});
  try{const db=await mf.getD1Database('DB');for(const f of fs.readdirSync('drizzle').filter(x=>x.endsWith('.sql')))for(const sql of fs.readFileSync('drizzle/'+f,'utf8').split('--> statement-breakpoint'))if(sql.trim())await db.prepare(sql).run();
- let cookie='';const call=async(path,body,opts={})=>{const headers={'oai-authenticated-user-id':opts.owner||'owner1',Origin:opts.origin||'https://test.local',Cookie:opts.cookie??cookie};if(body)headers['Content-Type']='application/json';const r=await mf.dispatchFetch('https://test.local'+path,{method:opts.method||(body?'POST':'GET'),headers,body:body?JSON.stringify(body):undefined});if(r.headers.get('set-cookie'))cookie=r.headers.get('set-cookie').split(';')[0];return {status:r.status,data:await r.json()}};
+ let cookie='';const call=async(path,body,opts={})=>{const headers={...(opts.anonymous?{}:{'oai-authenticated-user-id':opts.owner||'owner1'}),Origin:opts.origin||'https://test.local',Cookie:opts.cookie??cookie};if(body)headers['Content-Type']='application/json';const r=await mf.dispatchFetch('https://test.local'+path,{method:opts.method||(body?'POST':'GET'),headers,body:body?JSON.stringify(body):undefined});if(r.headers.get('set-cookie'))cookie=r.headers.get('set-cookie').split(';')[0];return {status:r.status,data:await r.json()}};
  assert.equal((await call('/api/me')).status,401);
  assert.equal((await call('/api/register',{email:'parent@example.test',password:'very-secure-pass123'})).status,200);
  assert.match(cookie,/__Host-suap=/);
@@ -24,7 +24,7 @@ test('account lifecycle, owner isolation, profile first measurement atomicity, g
  assert.equal((await call('/api/me')).data.profile,null);
  assert.equal((await call('/api/profile',{profile:p,measurement:m})).status,200);
  let me=(await call('/api/me')).data;assert.equal(me.measurements.length,1);assert.equal(me.profile.name,p.name);
- assert.equal((await call('/api/me',null,{owner:'owner2'})).status,401);
+ assert.equal((await call('/api/me',null,{anonymous:true})).status,200);assert.equal((await call('/api/me',null,{cookie:'',anonymous:true})).status,401);const originalCookie=cookie;assert.equal((await call('/api/register',{email:'another@example.test',password:'separate-account123'},{anonymous:true})).status,200);assert.equal((await call('/api/me',null,{anonymous:true})).data.profile,null);assert.equal((await call('/api/measurements/'+me.measurements[0].id,null,{method:'DELETE',anonymous:true})).status,200);cookie=originalCookie;assert.equal((await call('/api/me',null,{anonymous:true})).data.measurements.length,1);
  assert.equal((await call('/api/measurements',{...m,date:'2026-10-01',weight:7.8,height:68})).status,200);
  me=(await call('/api/me')).data;assert.equal(me.measurements.length,2);assert.equal(me.measurements[1].weight,7.8);
  assert.equal((await call('/api/measurements',m,{origin:'https://evil.test'})).status,403);
@@ -40,7 +40,7 @@ test('account lifecycle, owner isolation, profile first measurement atomicity, g
  assert.equal((await call('/api/measurements/'+me.measurements[0].id,null,{method:'DELETE'})).status,200);assert.equal((await call('/api/me')).data.measurements.length,1);
  const oldCookie=cookie;await call('/api/logout',{});assert.equal((await call('/api/me',null,{cookie:oldCookie})).status,401);
  assert.equal((await call('/api/login',{email:'parent@example.test',password:'wrong-password123'})).status,401);
- assert.equal((await call('/api/login',{email:'parent@example.test',password:'very-secure-pass123'})).status,200);assert.equal((await call('/api/me')).data.measurements.length,1);
+ await db.prepare('UPDATE accounts SET owner=? WHERE email=?').bind('legacy-private-owner','parent@example.test').run();assert.equal((await call('/api/login',{email:'parent@example.test',password:'very-secure-pass123'},{anonymous:true})).status,200);assert.equal((await call('/api/me')).data.measurements.length,1);
  assert.equal((await call('/api/password',{password:'very-secure-pass123',newPassword:'a-new-password123'})).status,200);assert.equal((await call('/api/me')).status,401);assert.equal((await call('/api/login',{email:'parent@example.test',password:'a-new-password123'})).status,200);
  }finally{await mf.dispose()}
 });
