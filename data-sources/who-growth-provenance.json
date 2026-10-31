@@ -1,0 +1,14 @@
+{
+  "publisher": "World Health Organization",
+  "title": "WHO Child Growth Standards (2006), daily LMS tables",
+  "repository": "https://github.com/WorldHealthOrganization/anthro",
+  "commit": "b776d8a12b1c97369c748b561159fd2ec4f4db58",
+  "weightUrl": "https://www.who.int/tools/child-growth-standards/standards/weight-for-age",
+  "heightUrl": "https://www.who.int/tools/child-growth-standards/standards/length-height-for-age",
+  "retrieved": "2026-10-31",
+  "maxDay": 731,
+  "files": {
+    "weianthro.txt": "bc15a6a623dd1d5beaeed1497666332aa54bc4ccd15ff9658c487d79694ab77b",
+    "lenanthro.txt": "709f7a11881451daf7820f022d363d5bdb93746b5361d6bd9218af6ff838e0c2"
+  }
+}
