@@ -3,7 +3,7 @@
 Aplikasi web mobile maksimal 480px untuk MPASI usia 6–24 bulan.
 
 - 250 variasi resep, filter usia dan alergi dari profil anak, serta load more 10 resep.
-- Akun email/password di dalam autentikasi Sites, profil anak, dan riwayat pengukuran.
+- Akun email/password mandiri untuk browser HP dan komputer, profil anak, dan riwayat pengukuran.
 - Grafik WHO BB/U dan PB/TB/U dengan garis vertikal interaktif.
 - Foto ilustrasi menu yang dibuat dengan AI.
 
@@ -21,7 +21,7 @@ npm run build
 
 Build menghasilkan Worker ESM di `dist/server/index.js`. Hosting memerlukan Cloudflare Workers/D1 atau Sites; GitHub Pages saja tidak menjalankan API akun dan database.
 
-Aplikasi membaca identitas `oai-authenticated-user-id` dari autentikasi Sites yang tepercaya. Jangan mengekspos Worker langsung dengan header identitas yang bisa dipalsukan pengguna. Untuk hosting lain, sesuaikan lapisan identitas server sebelum dipakai.
+Login aplikasi memakai email/password dan cookie sesi HttpOnly yang aman. Tidak memerlukan identitas atau login privat ChatGPT/Sites. Setiap profil dan pengukuran dibatasi oleh ID akun dari sesi. Kolom owner lama dipertahankan untuk kompatibilitas schema; akun lama tetap dapat dipakai. Percobaan autentikasi dibatasi per email dan IP Cloudflare bila tersedia.
 
 Binding database: `DB`. Terapkan SQL di `drizzle/` sebelum menjalankan API. Akun dan pengukuran produksi tidak disertakan di repositori ini. `.openai/hosting.json` sengaja tidak menyertakan identitas Site pribadi; hubungkan proyek hosting Anda sendiri.
 
